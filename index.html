@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Valentine Trap 😈</title>
+
+  <style>
+    :root{
+      --bg: #fff;
+      --txt: #111;
+      --yes: #111;
+      --no: #666;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      height:100vh;
+      overflow:hidden;
+      background: var(--bg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--txt);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .wrap{
+      width:min(92vw, 360px);
+      padding: 18px 14px 22px;
+      position:relative;
+      z-index:2;
+    }
+
+    .pic{
+      width: 240px;
+      max-width: 85%;
+      height:auto;
+      border-radius: 14px;
+      display:block;
+      margin: 0 auto 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      transform: translateZ(0);
+      animation: popIn 700ms ease both;
+    }
+
+    h2{
+      margin: 6px 0 14px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      animation: popIn 900ms ease both;
+    }
+
+    .sub{
+      font-size: 12px;
+      opacity: .75;
+      margin-top: -8px;
+      margin-bottom: 12px;
+    }
+
+    .arena{
+      position: relative;
+      height: 160px; /* room to move NO */
+      width: 100%;
+      margin-top: 6px;
+      overflow: visible;
+    }
+
+    button{
+      border:0;
+      border-radius: 14px;
+      padding: 14px 22px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(0,0,0,0.18);
+      transition: transform 220ms ease, width 220ms ease, height 220ms ease, border-radius 220ms ease;
+      touch-action: manipulation;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      will-change: transform;
+    }
+
+    #yesBtn{
+      background: var(--yes);
+      position: absolute;
+      left: 15%;
+      top: 56px;
+      transform: scale(1);
+      animation: floaty 2.2s ease-in-out infinite;
+    }
+
+    #noBtn{
+      background: var(--no);
+      position:absolute;
+      left: 60%;
+      top: 56px;
+      transform: scale(1);
+      padding: 10px 16px;
+      font-size: 14px;
+      border-radius: 12px;
+    }
+
+    /* Cute little wiggle when No moves */
+    .wiggle{
+      animation: wiggle 260ms ease;
+    }
+
+    /* Yes grows into full-screen takeover */
+    .takeover{
+      position: fixed !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%,-50%) scale(12) !important; /* huge */
+      width: 120vw !important;
+      height: 120vh !important;
+      border-radius: 0 !important;
+      z-index: 9999 !important;
+    }
+
+    /* Hearts */
+    .heart{
+      position: fixed;
+      left: 50%;
+      bottom: -24px;
+      font-size: 20px;
+      pointer-events:none;
+      opacity: 0.9;
+      filter: drop-shadow(0 6px 8px rgba(0,0,0,0.12));
+      animation: rise linear forwards;
+      z-index:1;
+    }
+
+    @keyframes rise{
+      0% { transform: translateX(0) translateY(0) scale(0.9) rotate(0deg); opacity: 0.9; }
+      70%{ opacity: 0.9; }
+      100%{ transform: translateX(var(--dx)) translateY(-120vh) scale(1.35) rotate(22deg); opacity: 0; }
+    }
+
+    @keyframes popIn{
+      from{ transform: translateY(10px) scale(0.95); opacity: 0; }
+      to{ transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    @keyframes floaty{
+      0%,100%{ transform: translateY(0) scale(var(--s, 1)); }
+      50%{ transform: translateY(-6px) scale(var(--s, 1)); }
+    }
+
+    @keyframes wiggle{
+      0%{ transform: translateY(0) scale(var(--ns,1)) rotate(0deg); }
+      35%{ transform: translateY(-2px) scale(var(--ns,1)) rotate(-6deg); }
+      70%{ transform: translateY(0) scale(var(--ns,1)) rotate(6deg); }
+      100%{ transform: translateY(0) scale(var(--ns,1)) rotate(0deg); }
+    }
+
+    /* Success screen */
+    .success h2{
+      font-size: 24px;
+      margin-top: 10px;
+    }
+    .success .sub{
+      font-size: 13px;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap" id="wrap">
+    <img class="pic" id="pic" src="https://images.pexels.com/photos/7578218/pexels-photo-7578218.jpeg" alt="cute"/>
+    <h2 id="title">Will you be my valentine? 😇</h2>
+    <div class="sub" id="sub">Tap “No” if you hate happiness.</div>
+
+    <div class="arena" id="arena">
+      <button id="yesBtn">Yes 💍</button>
+      <button id="noBtn">No 🙄</button>
+    </div>
+  </div>
+
+  <script>
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn  = document.getElementById("noBtn");
+    const arena  = document.getElementById("arena");
+    const title  = document.getElementById("title");
+    const sub    = document.getElementById("sub");
+    const pic    = document.getElementById("pic");
+    const wrap   = document.getElementById("wrap");
+
+    let noCount = 0;
+    let yesScale = 1;
+    let noScale = 1;
+    let fullscreenAsked = false;
+
+    // ---- Fullscreen (must be triggered by user interaction) ----
+    function requestFullscreenOnce(){
+      if (fullscreenAsked) return;
+      fullscreenAsked = true;
+
+      const el = document.documentElement;
+      const fs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (fs) {
+        try { fs.call(el); } catch (e) {}
+      }
+    }
+
+    // ---- Cute sound (Web Audio) ----
+    let audioCtx = null;
+    function beep(freq = 660, durationMs = 120){
+      try{
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+
+        g.gain.value = 0.0001;
+        o.connect(g);
+        g.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + durationMs/1000);
+
+        o.start(now);
+        o.stop(now + durationMs/1000 + 0.02);
+      }catch(e){}
+    }
+
+    // ---- Floating hearts ----
+    const heartChars = ["❤️","💖","💘","💕","💞","💓","💗","✨"];
+    function spawnHeart(burst=false){
+      const h = document.createElement("div");
+      h.className = "heart";
+      h.textContent = heartChars[Math.floor(Math.random() * heartChars.length)];
+
+      const x = Math.random() * window.innerWidth;
+      const dx = (Math.random() * 160 - 80) + "px";
+      const dur = burst ? (1200 + Math.random()*600) : (2400 + Math.random()*1800);
+
+      h.style.left = x + "px";
+      h.style.setProperty("--dx", dx);
+      h.style.animationDuration = dur + "ms";
+
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), dur + 200);
+    }
+
+    // gentle continuous hearts
+    setInterval(() => spawnHeart(false), 420);
+
+    function heartBurst(times=18){
+      for(let i=0;i<times;i++){
+        setTimeout(()=>spawnHeart(true), i*40);
+      }
+    }
+
+    // ---- Move NO inside the arena ----
+    function moveNo(){
+      const areaRect = arena.getBoundingClientRect();
+      const btnRect  = noBtn.getBoundingClientRect();
+
+      const maxX = areaRect.width  - btnRect.width;
+      const maxY = areaRect.height - btnRect.height;
+
+      const x = Math.max(0, Math.random() * maxX);
+      const y = Math.max(10, Math.random() * maxY);
+
+      noBtn.style.left = x + "px";
+      noBtn.style.top  = y + "px";
+    }
+
+    function updateScales(){
+      // Apply scales
+      yesBtn.style.transform = `scale(${yesScale})`;
+      noBtn.style.setProperty("--ns", noScale);
+      noBtn.style.transform = `scale(${noScale})`;
+
+      // Keep Yes float animation scaling consistent
+      yesBtn.style.setProperty("--s", yesScale);
+    }
+
+    // ---- NO: shrink + Yes: grow ----
+    function onNo(){
+      requestFullscreenOnce();
+
+      noCount++;
+
+      // shrink No (min 0.25)
+      noScale = Math.max(0.25, 1 - noCount * 0.10);
+
+      // grow Yes (keeps getting bigger)
+      yesScale = Math.min(6, 1 + noCount * 0.22);
+
+      // funny taunts
+      const lines = [
+        "Tap “No” again and you owe me snacks 😤",
+        "Stop resisting 😭",
+        "Bro… it’s just one “Yes” 😭",
+        "You’re fighting for your life huh 😈",
+        "Okay now you’re doing too much 💀"
+      ];
+      sub.textContent = lines[Math.min(lines.length-1, Math.floor(noCount/2))];
+
+      // move + wiggle
+      moveNo();
+      noBtn.classList.remove("wiggle");
+      void noBtn.offsetWidth; // restart animation
+      noBtn.classList.add("wiggle");
+
+      // little boop sound sometimes
+      if(noCount % 2 === 0) beep(520, 90);
+
+      updateScales();
+
+      // when Yes is huge → cover screen (no choice)
+      if (yesScale >= 4.2){
+        yesBtn.classList.add("takeover");
+        // keep it clickable and visible
+        yesBtn.textContent = "YES 😭 (tap me)";
+      }
+    }
+
+   function noPressed(e){
+  e.preventDefault();
+  e.stopPropagation();
+  onNo();
+}
+
+// works on ALL phones
+noBtn.addEventListener("click", noPressed);
+noBtn.addEventListener("touchend", noPressed);
+
+
+
+    // YES click/touch
+    function onYes(){
+      requestFullscreenOnce();
+
+      // cute little melody beeps
+      beep(660, 120);
+      setTimeout(()=>beep(880, 120), 120);
+      setTimeout(()=>beep(990, 140), 260);
+
+      heartBurst(26);
+
+      // success screen
+      wrap.classList.add("success");
+      title.textContent = "YAYYYY!! ❤️🎉";
+      sub.textContent = "Congratulations. You have been successfully proposed to LIKO";
+      pic.src = "https://bestanimations.com/Holidays/Fireworks/Fireworks.html"; // replace with your own
+      arena.remove();
+    }
+
+    yesBtn.addEventListener("click", onYes);
+    yesBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); onYes(); }, { passive:false });
+
+    // Also ask fullscreen on first tap anywhere
+    document.addEventListener("touchstart", requestFullscreenOnce, { passive:true });
+
+    // start with a random No position
+    moveNo();
+  </script>
+</body>
+</html>
